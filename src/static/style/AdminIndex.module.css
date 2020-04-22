@@ -1,0 +1,23 @@
+.logo {
+	height: 32px;
+	background: rgba(255, 255, 255, 0.2);
+	margin: 16px;
+}
+
+.logo::before{
+	content: "Slinky's Blog System";
+	display: block;
+	text-align: center;
+	color: white;
+	line-height: 32px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.pageContent{
+	display: flex;
+}
+.site_layout {
+	background: #fff;
+}
