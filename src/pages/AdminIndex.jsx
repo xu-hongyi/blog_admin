@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Layout, Menu, PageHeader, Descriptions, Tag, Statistic,Row, Col } from 'antd';
+import { Layout, Menu, PageHeader, Descriptions, Tag, Statistic,Row, Col, Button } from 'antd';
 import styles from '../static/style/AdminIndex.module.css'
 import { Route } from "react-router-dom"
 import AddArticle from './AddArticle'
-import { createFromIconfontCN, ConsoleSqlOutlined } from '@ant-design/icons';
-import axios from "axios"
-import servicePath from '../config/apiUrl'
+import { createFromIconfontCN } from '@ant-design/icons';
 import ArticleList from './ArticleList'
+import {getTypeCount} from '../config/api'
 const IconFont = createFromIconfontCN({
-	scriptUrl: '//at.alicdn.com/t/font_1772428_4tu8moknrg3.js',
+	scriptUrl: '//at.alicdn.com/t/font_1772428_v4kxnngd8tl.js',
   });
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
@@ -19,20 +18,33 @@ const Admin = props => {
 	const [css, setCSS] = useState(0)
 	const [js, setJS] = useState(0)
 	const [node, setNode] = useState(0)
+	
 	useEffect(() =>{
-		const count = async () =>{
-			const typeCount = await getTypeCount();
-			const typeName = await getTypeInfo();
-			typeName.forEach(item =>{
-				typeCount.forEach(it =>{
-					if(it.type_id === item.id){
-						// set[item.typename](it[count(1)])
-					}
-				})
-			})
-		};
-		count()
-	},[])
+		const getCount = async () =>{
+			const result = await getTypeCount()
+			result.data.forEach(item => {
+				switch (item.type_id) {
+					case 1:
+						setHtml(item.num);
+						break;
+					case 2:
+						setCSS(item.num);
+						break;
+					case 3:
+						setJS(item.num);
+						break;
+					case 4:
+						setNode(item.num);
+						break;
+					default:
+						break;
+					
+				}
+			});
+		}
+		getCount()
+	}, [])
+
 	const onCollapse = () => setCollapsed(!collapsed);
 	const handleClicKMenu = e =>{
 		if(e.key === 'addArticle'){
@@ -41,24 +53,10 @@ const Admin = props => {
 			props.history.push('/index/articleList')
 		}
 	}
-	const getTypeCount = () =>{
-		return axios(servicePath.getTypeCount, {withCredentials:true}).then(res =>{
-			return res.data.data;	
-		})
-	}
-	const getTypeInfo = () =>{
-		return axios({
-			method:"get",
-			url:servicePath.getTypeInfo,
-			withCredentials:true
-		}).then(res =>{
-			if(res.data.data == '没有登陆'){
-				localStorage.removeItem('openId')
-				props.history.push("/login")
-			}else{
-				return res.data.data;
-			}
-		})
+
+	const loginOut = () =>{
+		localStorage.removeItem("token")
+		props.history.push('/')
 	}
 	return (
 		<Layout style={{ minHeight: '100vh' }} theme="light">
@@ -90,6 +88,9 @@ const Admin = props => {
 						subTitle="仅供个人学习使用"
 						avatar={{ src: 'https://gitee.com/slowly_and_slowly/cloudImg/raw/master/1587525974(1).png' }}
 						tags={[<Tag key="1" color="magenta">游戏人生</Tag>,<Tag key="2" color="red">快乐学习</Tag>]}
+						extra={[
+							<Button key="0" type="danger" ghost icon={<IconFont type="icon-loginout" />} onClick={loginOut}>退出登录</Button>
+						  ]}
 					>
 						<Row>
 							<Col span={16}>

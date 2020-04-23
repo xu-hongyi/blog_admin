@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import marked from 'marked'
-import { Row, Col, Input, Select, Button, DatePicker, Space, message } from 'antd'
+import { Row, Col, Input, Select, Button, DatePicker, Space, message, Popconfirm } from 'antd'
 import styles from '../static/style/AddArticle.module.css'
-import axios from "axios"
-import servicePath from '../config/apiUrl'
+import { getArticleById, getTypeInfo, updateArticle, addArticle } from '../config/api'
 const { Option } = Select;
 const { TextArea } = Input
 export default function AddArticle(props) {
 	const {location} = props;
-
 	const [articleId, setArticleId] = useState(0)  // 文章的ID，如果是0说明是新增加，如果不是0，说明是修改
 	const [articleTitle, setArticleTitle] = useState('')   //文章标题
 	const [articleContent, setArticleContent] = useState('')  //markdown的编辑内容
@@ -18,15 +16,16 @@ export default function AddArticle(props) {
 	const [showDate, setShowDate] = useState()   //发布日期
 	const [typeInfo, setTypeInfo] = useState([]) // 文章类别信息
 	const [selectedType, setSelectType] = useState('请选择类别') //选择的文章类别
+	console.log(1)
 	useEffect(() => {
-		getTypeInfo();
+		getTypes();
 	}, [])
-	useEffect(() =>{
-		if(location.search){
+	useEffect(() => {
+		if (location.search) {
 			const searArr = location.search.split("=")
 			const id = Number(searArr[searArr.length - 1])
 			setArticleId(id)
-			getArticleById(id)
+			getArticle(id)
 		}
 	}, [location])
 	const render = new marked.Renderer();
@@ -39,51 +38,53 @@ export default function AddArticle(props) {
 		breaks: false,
 		smartLists: true,
 		smartypants: false,
-	  }); 
-	const changeContent = e =>{
+	});
+	const changeContent = e => {
 		setArticleContent(e.target.value)
 		const html = marked(e.target.value)
 		setMarkdownContent(html)
 	}
-	const changIntroduce = e =>{
+	const changIntroduce = e => {
 		setIntroducemd(e.target.value);
 		const html = marked(e.target.value);
 		setIntroducehtml(html)
 	}
 
-	const getTypeInfo = () =>{
-		axios({
-			method:"get",
-			url:servicePath.getTypeInfo,
-			withCredentials:true
-		}).then(res =>{
-			if(res.data.data == '没有登陆'){
-				localStorage.removeItem('openId')
-				props.history.push("/login")
-			}else{
-				setTypeInfo(res.data.data)
-			}
-		})
+	const getTypes = async () => {
+		const res = await getTypeInfo()
+		setTypeInfo(res.data)
+	}
+
+	const reset = () => {
+		setArticleId(0);
+		setArticleTitle('');
+		setArticleContent('');
+		setMarkdownContent('');
+		setIntroducemd('');
+		setIntroducehtml('');
+		setShowDate();
+		setSelectType('请选择类别')
+		
 	}
 
 	const selectTypeHandle = value =>{
-		setSelectType(value)
+		setSelectType(value);
 	}
 
-	const saveArtical = () =>{
-		if(!selectedType){
+	const saveArtical = async () => {
+		if (!selectedType) {
 			message.error("必须选择文章类型")
 			return false;
-		}else if(!articleTitle){
+		} else if (!articleTitle) {
 			message.error("文章标题不能为空")
 			return false
-		}else if(!articleContent){
+		} else if (!articleContent) {
 			message.error("文章内容不能为空")
 			return false
-		}else if(!introducemd){
+		} else if (!introducemd) {
 			message.error("文章简介不能为空")
 			return false
-		}else if(!showDate){
+		} else if (!showDate) {
 			message.error("发布日期不能为空")
 			return false
 		}
@@ -94,56 +95,43 @@ export default function AddArticle(props) {
 		dataProps.introduce = introducemd;
 		const dateText = showDate.replace('-', '/')
 		dataProps.addTime = (new Date(dateText).getTime()) / 1000;
-		if(articleId == 0){
+		if (articleId === 0) {
 			dataProps.view_count = 0;
-			axios({
-				method:"post",
-				url:servicePath.addArticle,
-				data:dataProps,
-				withCredentials:true
-			}).then(res => {
-				setArticleId(res.data.insertId)
-				if(res.data.isSuccess){
-					message.success("文章添加成功")
-				}else{
-					message.error("文章添加失败")
-				}
-			})
-		}else{
+			const res = await addArticle(dataProps);
+			setArticleId(res.insertId)
+			if (res.isSuccess) {
+				message.success("文章添加成功")
+			} else {
+				message.error("文章添加失败")
+			}
+		} else {
 			dataProps.id = articleId;
-			axios({
-				method:"post",
-				url:servicePath.updateArticle,
-				data:dataProps,
-				withCredentials:true
-			}).then(res =>{
-				if(res.data.isSuccess){
-					message.success("文章修改成功")
-				}else{
-					message.error('文章修改失败')
-				}
-			})
+			const result = await updateArticle(dataProps);
+			if (result.isSuccess) {
+				message.success("文章修改成功")
+			} else {
+				message.error('文章修改失败')
+			}
 		}
 	}
 
-	const getArticleById = id =>{
-		axios(servicePath.getArticleById + id, {withCredentials:true}).then(res =>{
-			if(res.data.data){
-				const article = res.data.data[0];
-				setArticleTitle(article.title);
-				setArticleContent(article.article_content);
-				const html = marked(article.article_content);
-				setMarkdownContent(html);
-				setIntroducemd(article.introduce);
-				const introducehtml = marked(article.introduce);
-				setIntroducehtml(introducehtml);
-				setShowDate(article.addTime);
-				setSelectType(article.typeName)
-			}
-		})
+	const getArticle = async id => {
+		const res = await getArticleById(id);
+		if (res.data) {
+			const article = res.data[0];
+			setArticleTitle(article.title);
+			setArticleContent(article.article_content);
+			const html = marked(article.article_content);
+			setMarkdownContent(html);
+			setIntroducemd(article.introduce);
+			const introducehtml = marked(article.introduce);
+			setIntroducehtml(introducehtml);
+			setShowDate(article.addTime);
+			setSelectType(article.typeName)
+		}
 	}
 
-	
+
 	return (
 		<div>
 			<Row gutter={5}>
@@ -153,13 +141,13 @@ export default function AddArticle(props) {
 							<Input
 								placeholder="博客标题"
 								size="large"
-								onChange={e =>{setArticleTitle(e.target.value)}}
+								onChange={e => { setArticleTitle(e.target.value) }}
 								value={articleTitle}
 							/>
 						</Col>
 						<Col span={4}>
 							<Select defaultValue={selectedType} size="large" onChange={selectTypeHandle}>
-								{typeInfo.map((item, index) => <Option key={index} value={item.id}>{item.typename}</Option> )}>
+								{typeInfo.map((item, index) => <Option key={index} value={item.id}>{item.typename}</Option>)}>
 							</Select>
 						</Col>
 					</Row>
@@ -176,7 +164,7 @@ export default function AddArticle(props) {
 						</Col>
 						<Col span={12}>
 							<div className={styles.show_html}
-								dangerouslySetInnerHTML={{__html:markdownContent}}
+								dangerouslySetInnerHTML={{ __html: markdownContent }}
 							></div>
 						</Col>
 					</Row>
@@ -185,19 +173,26 @@ export default function AddArticle(props) {
 					<Row style={{ marginLeft: 10 }}>
 						<Col span={24}>
 							<div className={styles.date_select}>
-								<DatePicker placeholder="发布日期" size="large" onChange={(data, dataString) => {setShowDate(dataString)}} />
+								<DatePicker placeholder="发布日期" size="large" onChange={(data, dataString) => { setShowDate(dataString) }} />
 							</div>
 						</Col>
 						<Col span={24}>
 							<Space size='large'>
-								<Button size="large" onClick={() =>{setArticleId(0)}}>新建文章</Button>
+								<Popconfirm
+									cancelText="取消"
+									okText="确定"
+									title="确定清除所有内容？"
+									onConfirm={reset}
+								>
+								<Button size="large" danger>新建文章</Button>
+								</Popconfirm>
 								<Button size="large" type="primary" onClick={saveArtical}>发布文章</Button>
 							</Space>
 						</Col>
 						<Col span={24} style={{ marginTop: 10 }}>
 							<TextArea rows={4} placeholder="文章简介" onChange={changIntroduce} value={introducemd} />
 							<div className={styles.introduce}
-								dangerouslySetInnerHTML={{__html:introducehtml}}
+								dangerouslySetInnerHTML={{ __html: introducehtml }}
 							></div>
 						</Col>
 					</Row>

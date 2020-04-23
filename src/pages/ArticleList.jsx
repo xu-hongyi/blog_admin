@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { List, Row, Col, Modal, message, Button, Space } from "antd"
-import axios from 'axios'
-import servicePath from '../config/apiUrl'
+import {getArticleList, deleteArticle} from '../config/api'
 import styles from '../static/style/ArticleList.module.css'
 const { confirm } = Modal
 export default function ArticleList(props) {
@@ -26,24 +25,18 @@ export default function ArticleList(props) {
 	useEffect(() => {
 		getList()
 	}, [])
-	const getList = () => {
-		axios({
-			method: 'get',
-			url: servicePath.getArticleList,
-			withCredentials: true
-		}).then(res => {
-			setList(res.data.data)
-		})
+	const getList = async () => {
+		const result = await getArticleList();
+		setList(result.data);
 	}
-	const deleteArticle = id =>{
+	const deleteArt = id =>{
 		confirm({
 			title:'确定要删除这篇文章吗？',
 			content:"点击🆗后文章将被删除,无法恢复",
-			onOk(){
-				axios(servicePath.deleteArticle + id, {withCredentials:true}).then(res =>{
-					message.success("删除文章成功")
-					getList();
-				})
+			async onOk(){
+				const result =  await deleteArticle(id)
+				message.success("删除文章成功")
+				await getList();
 			},
 			onCancel(){
 				message.success("文章没有任何变化")
@@ -78,7 +71,7 @@ export default function ArticleList(props) {
 							<Col span={4}>
 								<Space>
 									<Button type="primary" onClick={() =>{updateArticle(item.id)}}>修改</Button>
-									<Button type="danger" onClick={() =>{deleteArticle(item.id)}}>删除</Button>
+									<Button type="danger" onClick={() =>{deleteArt(item.id)}}>删除</Button>
 								</Space>
 							</Col>
 						</Row>
